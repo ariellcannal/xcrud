@@ -1,0 +1,13 @@
+{
+	"autoload" : {
+		"psr-4" : {
+			"Cannalweb\\xcrud\\" : "src"
+		}
+	},
+	"name" : "cannal-web/xcrud",
+	"type" : "project",
+	"license" : "MIT",
+	"require" : {
+		"php" : ">=7.3"
+	}
+}
