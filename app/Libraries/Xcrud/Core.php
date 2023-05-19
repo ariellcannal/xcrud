@@ -1,7 +1,7 @@
 <?php
-/**
- * f0ska xCRUD v.1.6.26.1; 03/2015
- */
+namespace Xcrud;
+
+use Xcrud\Db;
 
 // direct access to DB driver and config
 define('XCRUD_PATH', str_replace('\\', '/', dirname(__file__))); // str_replace
@@ -18,7 +18,7 @@ date_default_timezone_set(@date_default_timezone_get()); // xcrud code not
 if (get_magic_quotes_runtime()) {
 	set_magic_quotes_runtime(0);
 }
-class Xcrud {
+class Core {
 	private $demo_mode = false;
 	protected static $instance = array();
 	protected static $css_loaded = false;
@@ -8491,6 +8491,7 @@ class Xcrud {
 					'title' => $this->lang('duplicate'),
 					'href' => 'javascript:;',
 					'data-primary' => $row['primary_key'],
+			        'data-confirm' => $this->lang('duplicate_confirm'),
 					'data-task' => 'clone',
 					'data-after' => 'edit');
 			$out .= $this->open_tag($tag, $this->theme_config('grid_duplicate'));
