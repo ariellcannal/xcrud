@@ -90,6 +90,7 @@ class Xcrud_config
     public static $set_as_checkboxes = false; // shows SET field as checkboxes, multiselect by default
     public static $upload_folder_def = '../../uploads/'; // Default uploads folder on your site, relative to xCRUD folder or absolute path required. Folder is must exist.
     public static $not_null_is_required = true; // makes not null fields required
+    public static $encode_field_names = false;
     
     
     // features
