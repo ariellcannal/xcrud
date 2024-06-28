@@ -1,0 +1,24 @@
+{
+	"name" : "ariellcannal/xcrud",
+	"description" : "xCrud - Ariell Cannal",
+	"license" : "MIT",
+	"type" : "project",
+	"support" : {
+		"forum" : "https://forum.codeigniter.com/",
+		"source" : "https://github.com/codeigniter4/CodeIgniter4",
+		"slack" : "https://codeigniterchat.slack.com"
+	},
+	"require" : {
+		"php" : "^8.1",
+		"ext-intl" : "*",
+		"ext-mbstring" : "*"
+	},
+	"config" : {
+		"optimize-autoloader" : true,
+		"preferred-install" : "dist",
+		"sort-packages" : true
+	},
+	"scripts" : {
+		"test" : "phpunit"
+	}
+}
