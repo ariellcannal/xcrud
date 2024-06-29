@@ -2,8 +2,9 @@
 	"name" : "ariellcannal/xcrud",
 	"description" : "XCRUD - Ariell Cannal",
 	"license" : "MIT",
-	"type" : "project",
+	"type" : "codeigniter-module",
 	"require" : {
+		"composer/installers": "~1.0",
 		"php" : "^8.1",
 		"ext-intl" : "*",
 		"ext-mbstring" : "*"
