@@ -5925,12 +5925,17 @@ class Core
             $safe = $this->safe_output;
         }
 
+        if(!is_null($string)){
         $string = html_entity_decode($string, ENT_QUOTES, Xcrud_config::$mbencoding);
+        }
 
         if (! $len) {
             return $this->output_string($string, $this->strip_tags, $safe);
         }
-        $strip_string = trim(strip_tags($string));
+        if(!is_null($string)){
+            $strip_string = trim(strip_tags($string));
+        }
+        
         $slen = mb_strlen($strip_string, Xcrud_config::$mbencoding);
         if ($slen <= $len || (Xcrud_config::$print_full_texts && $this->theme == 'printout')) {
             return $this->output_string($string, $this->strip_tags, $safe);
@@ -10316,10 +10321,11 @@ class Core
                     $tbl = $this->table;
                     $fld = $val;
                 }
-                if (! is_array($val)) {
+                if (! is_array($val) && !is_null($val)) {
                     $value = str_ireplace('{' . $key . '}', $safety ? $this->html_safe($val) : $val, $value);
-                    if ($tbl == $this->table)
+                    if ($tbl == $this->table){
                         $value = str_ireplace('{' . $fld . '}', $safety ? $this->html_safe($val) : $val, $value);
+                    }
                 }
             }
         }
