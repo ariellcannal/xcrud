@@ -142,7 +142,7 @@ class Database
                     return '\'' . $this->ci->xcrud_model->escape_str($val) . '\'';
                     break;
                 default:
-                    if (trim($val) == '') {
+                    if (is_null($val) || trim ( $val ) == '') {
                         if ($null) {
                             return 'NULL';
                         } else {

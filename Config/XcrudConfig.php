@@ -3,39 +3,8 @@ namespace Xcrud\Config;
 
 class XcrudConfig
 {
-    // default connection
-    public static $dbname = APP_DBNAME; // Your database name
-    public static $dbuser = APP_DBUSER; // Your database username
-    public static $dbpass = APP_DBPASS; // // Your database password
-    public static $dbhost = APP_DBHOST; // Your database host, 'localhost' is default.
-    
-    
-    // theme and language
+    // theme
     public static $theme = 'xcrud_default'; // can be 'default', 'bootstrap', 'minimal' or your custom. Theme of xCRUD visual presentation. For using bootstrap you need to load it on your page.
-    public static $language = APP_LANG; // sets default localization
-    public static $is_rtl = false; // enables right-to-left (RTL) mode
-    
-    
-    // database advanced
-    public static $dbencoding = APP_DBCHARSET; // Your database encoding, default is 'utf8'. Do not change, if not sure.
-    public static $db_time_zone = ''; // database time zone, if you want use system default - leave empty.
-    public static $mbencoding = APP_CHARSET; // Your mb_string encoding, default is 'utf-8'. Do not change, if not sure.
-    public static $dbprefix = APP_DBPREF;
-
-    
-    // session
-    public static $sess_name = APP_SESSION_NAME; // If your script is already using the session, specify the session name for it. By default, the name of the session in PHP equal 'PHPSESSID'.
-    public static $sess_expire = APP_SESSION_EXPIRATION; // Specifies the lifetime of the session, as well as the existence of a key safety (for example, the maximum edit-saving timeout).
-    public static $dynamic_session = false; // this option is used for compatibility with with frameworks and cms that using dynamic session name.
-    
-    
-    // alternative session (reqires memcache(d) and mcrypt)
-    public static $alt_session = false; // use this only if you have troubles with native php sessions
-    public static $alt_encription_key = 'super enc key'; // needs to protect alt. session data, required if alt. session is enabled
-    public static $alt_lifetime = 30; // in minutes, maximum time between requests when instance's data can be valid
-    public static $mc_host = 'localhost'; // Memcache(d) host
-    public static $mc_port = 11211; // Memcache(d) port
-    
     
     // scripts
     public static $load_bootstrap = false; // turn on, if you want to load bootstrap via xCRUD
@@ -110,8 +79,6 @@ class XcrudConfig
     public static $nested_in_tab = true; // Nested will be displayed in tab if tabs are active
     public static $relation_ajax = 5000; // number of register to trasnform relation in ajax.
     
-    
-       
     // alert settings
     public static $email_from = 'mailer@example.com'; // email from address
     public static $email_from_name = ''; // email from name

@@ -7,11 +7,6 @@ use Xcrud\Libraries\Xcrud;
 class XcrudController extends BaseController
 {
 
-    function __construct()
-    {
-        parent::__construct();
-    }
-
     public function ajax()
     {
         return Xcrud::get_requested_instance();

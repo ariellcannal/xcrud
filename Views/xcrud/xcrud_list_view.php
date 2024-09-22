@@ -26,6 +26,7 @@ else{
 					                <?php
 									echo $this->print_button ( 'btn btn-default btn-outline', 'icon wb-print' );
 									echo $this->csv_button ( 'btn btn-default btn-outline', 'icon wb-file' );
+									echo $this->refresh_button ( 'btn btn-default btn-outline', 'icon wb-sync' );
 									?>
 					            </div>
 							</div>
