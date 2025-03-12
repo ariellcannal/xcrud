@@ -118,8 +118,10 @@ class Database
                     return (int) $val ? 1 : ($null ? 'NULL' : 0);
                     break;
                 case 'int':
-                    $val = preg_replace('/[^0-9\-]/', '', $val);
-                    if ($val === '') {
+                    if (! empty($val)) {
+                        $val = preg_replace('/[^0-9\-]/', '', $val);
+                    }
+                    if ($val == '') {
                         if ($null) {
                             return 'NULL';
                         } else {
@@ -142,7 +144,7 @@ class Database
                     return '\'' . $this->ci->xcrud_model->escape_str($val) . '\'';
                     break;
                 default:
-                    if (is_null($val) || trim ( $val ) == '') {
+                    if (is_null($val) || trim($val) == '') {
                         if ($null) {
                             return 'NULL';
                         } else {

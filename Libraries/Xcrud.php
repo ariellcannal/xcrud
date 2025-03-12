@@ -101,7 +101,7 @@ class Xcrud
     protected $buttons_position = 'right';
 
     protected $buttons = array();
-    
+
     protected $custom_buttons = array();
 
     protected $readonly = array();
@@ -321,6 +321,8 @@ class Xcrud
 
     protected $task = '';
 
+    protected $previous_task = '';
+
     protected $column = false;
 
     protected $column2 = false;
@@ -379,7 +381,7 @@ class Xcrud
 
     protected $exception_text = '';
 
-    protected $message = array();
+    protected $messages = array();
 
     protected $nested_rendered = array();
 
@@ -453,9 +455,7 @@ class Xcrud
 
     protected $columns_default = '';
 
-    protected $is_mass_remove = false;
-
-    protected $mass_edit = array();
+    protected $mass_actions = array();
 
     protected $opened_tab = false;
 
@@ -805,7 +805,7 @@ class Xcrud
         return $this;
     }
 
-    public function relation($fields = '', $rel_tbl = '', $rel_field = '', $rel_name = '', $rel_where = array(), $order_by = false, $multi = false, $rel_concat_separator = ' ', $tree = false, $depend_field = '', $depend_on = '')
+    public function relation($fields = '', $rel_tbl = '', $rel_field = '', $rel_name = '', $rel_where = array(), $order_by = false, $multi = false, $rel_concat_separator = ' ',$join = null, $tree = false, $depend_field = '', $depend_on = '')
     {
         if ($fields && $rel_tbl && $rel_field && $rel_name) {
             if ($depend_on) {
@@ -823,6 +823,7 @@ class Xcrud
                     'rel_separator' => $rel_concat_separator,
                     'order_by' => $order_by,
                     'multi' => $multi,
+                    'join' => $join,
                     'table' => $fitem['table'],
                     'field' => $fitem['field'],
                     'tree' => $tree,
@@ -1240,7 +1241,7 @@ class Xcrud
         }
         return $this;
     }
-    
+
     public function custom_button($link = '', $label = '', $icon = '', $class = '', $tag = array())
     {
         if (! $link || ! $label) {
@@ -2381,7 +2382,7 @@ class Xcrud
                 $this->unset_remove();
                 $this->unset_edit();
                 $this->unset_view();
-                $this->unset_mass_remove();
+                $this->mass_remove(false);
                 $this->unset_sortable(false);
                 $this->unset_csv(false);
                 $this->unset_print();
@@ -3420,7 +3421,9 @@ class Xcrud
             if ($this->direct_select_tags) // tags for unset condition
             {
                 foreach ($this->direct_select_tags as $key => $dsf) {
-                    $fields[$key] = "`{$dsf['table']}`.`{$dsf['field']}` AS `{$key}`";
+                    if (! $dsf['table'] == $this->table || (isset($this->join[$dsf['table']]) && $this->join[$dsf['table']]['not_insert'] != true)) {
+                        $fields[$key] = "`{$dsf['table']}`.`{$dsf['field']}` AS `{$key}`";
+                    }
                 }
             }
             if (in_array('image', $this->field_type) or in_array('file', $this->field_type) or in_array('fk_relation', $this->field_type)) // images
@@ -3449,10 +3452,12 @@ class Xcrud
                     $db->query('SELECT ' . implode(',', $fields) . " FROM `{$this->table}` WHERE `{$this->primary_key}` = " . $db->escape($this->primary_val) . ' LIMIT 1');
                     $del_row = $db->row();
                 }
-                if (! $this->is_remove($del_row))
+                if (! $this->is_remove($del_row)) {
                     return self::error('Forbidden');
-                if (! $this->demo_mode)
+                }
+                if (! $this->demo_mode) {
                     $del = $db->query("DELETE FROM `{$this->table}` WHERE `{$this->primary_key}` = " . $db->escape($this->primary_val) . " LIMIT 1");
+                }
             } else {
                 $tables = array(
                     '`' . $this->table . '`'
@@ -3461,16 +3466,16 @@ class Xcrud
                 foreach ($this->join as $alias => $param) {
                     if (! $param['not_insert']) {
                         $tables[] = '`' . $alias . '`';
+                        $joins[] = "INNER JOIN `{$param['join_table']}` AS `{$alias}`ON `{$param['table']}`.`{$param['field']}` = `{$alias}`.`{$param['join_field']}` " . $param['additional_cond'];
                     }
-                    $joins[] = "INNER JOIN `{$param['join_table']}` AS `{$alias}`
-                    ON `{$param['table']}`.`{$param['field']}` = `{$alias}`.`{$param['join_field']}` " . $param['additional_cond'];
                 }
                 if ($fields) {
                     $db->query('SELECT ' . implode(',', $fields) . " FROM `{$this->table}` AS `{$this->table}` " . implode(' ', $joins) . " WHERE `{$this->table}`.`{$this->primary_key}` = " . $db->escape($this->primary_val));
                     $del_row = $db->row();
                 }
-                if (! $this->is_remove($del_row))
+                if (! $this->is_remove($del_row)) {
                     return self::error('Forbidden');
+                }
                 if (! $this->demo_mode)
                     $del = $db->query("DELETE " . implode(',', $tables) . " FROM `{$this->table}` AS `{$this->table}` " . implode(' ', $joins) . " WHERE `{$this->table}`.`{$this->primary_key}` = " . $db->escape($this->primary_val));
             }
@@ -3896,6 +3901,7 @@ class Xcrud
             }
         }
         unset($postdata);
+        $this->previous_task = $this->task;
         $this->task = $this->after;
         $this->after = null;
         return $this->_run_task();
@@ -3905,7 +3911,7 @@ class Xcrud
     {
         foreach ($postdata as $key => $val) {
             if (isset($this->validation_required[$key]) && mb_strlen($val) < $this->validation_required[$key]) {
-                $this->set_exception($key, 'validation_error', 'error');
+                $this->set_exception_fields($key, 'validation_error');
             } elseif (isset($this->validation_pattern[$key]) && mb_strlen($val) > 0) {
                 switch ($this->validation_pattern[$key]) {
                     case 'email':
@@ -3940,7 +3946,7 @@ class Xcrud
                         break;
                 }
                 if (! preg_match($reg, $val)) {
-                    $this->set_exception($key, 'validation_error', 'error');
+                    $this->set_exception_fields($key, 'validation_error');
                 }
             }
         }
@@ -3953,10 +3959,10 @@ class Xcrud
             case 'upload':
                 switch ($this->_post('type')) {
                     case 'image':
-                        return $this->create_image($this->_post('field'), '') . $this->render_message();
+                        return $this->create_image($this->_post('field'), '') . $this->render_messages();
                         break;
                     case 'file':
-                        return $this->create_file($this->_post('field'), '') . $this->render_message();
+                        return $this->create_file($this->_post('field'), '') . $this->render_messages();
                         break;
                     default:
                         return self::error('Upload Error');
@@ -4009,33 +4015,51 @@ class Xcrud
         }
     }
 
-    public function set_exception($fields = '', $message = '', $type = 'note')
+    public function set_exception_fields($fields = '', $message = '', $type = 'error')
+    {
+        return $this->set_notify($message, $type, true, $fields);
+    }
+
+    public function set_notify($message = '', $type = 'message', $exception = false, $fields = '')
     {
         if ($message) {
-            $this->message = array(
+            $this->messages[] = [
                 'type' => $type,
-                'text' => $this->lang($message)
-            );
+                'text' => $this->lang($message),
+                'exception' => $exception
+            ];
+        }
+        if ($exception) {
+            $this->exception = true;
         }
         if ($fields) {
-            $fdata = $this->_parse_field_names($fields, 'set_exception');
+            $fdata = $this->_parse_field_names($fields, 'set_exception_fields');
             foreach ($fdata as $key => $fitem) {
+                $fitem['exception'] = $message;
                 $this->exception_fields[$key] = $fitem;
             }
         }
-        $this->exception = true;
+
         return $this;
     }
 
-    public function set_message($message = '', $type = 'note')
+    protected function render_messages()
     {
-        if ($message) {
-            $this->message = array(
-                'type' => $type,
-                'text' => $this->lang($message)
-            );
+        $out = '';
+        if (count($this->messages)) {
+            foreach ($this->messages as $message) {
+                $tag = [
+                    'tag' => 'input',
+                    'type' => 'hidden',
+                    'class' => 'xcrud-callback-message',
+                    'name' => $message['type'],
+                    'value' => $message['text'],
+                    'data-exception' => $message['exception']
+                ];
+                $out .= $this->single_tag($tag);
+            }
         }
-        return $this;
+        return $out;
     }
 
     /**
@@ -4176,6 +4200,14 @@ class Xcrud
                 } elseif (isset($this->point_field[$field_index])) {
                     $columns[] = 'CONCAT(X(`' . $val['table'] . '`.`' . $val['field'] . '`),\',\',Y(`' . $val['table'] . '`.`' . $val['field'] . '`)) AS `' . $val['table'] . '.' . $val['field'] . '`' . "\r\n";
                 } elseif (isset($this->relation[$field_index])) {
+                    $join = '';
+                    if (is_array($this->relation[$field_index]['join'])) {
+                        foreach ($this->relation[$field_index]['join'] as $params) {
+                            if (! is_null($params['lfield']) && ! is_null($params['table']) && ! is_null($params['rfield'])) {
+                                $join .= 'INNER JOIN `' . $params['table'] . '` AS '.md5($params['table']).' ON `' . $this->relation[$field_index]['rel_tbl'] . '`.`' . $params['lfield'] . '` = `' . md5($params['table']) . '`.`' . $params['rfield'] . '` ';
+                            }
+                        }
+                    }
                     if (is_array($this->relation[$field_index]['rel_name'])) {
                         $tmp_fields = array();
 
@@ -4188,18 +4220,18 @@ class Xcrud
                             $where = "`{$this->relation[$field_index]['rel_tbl']}`.`{$this->relation[$field_index]['rel_field']}` = `{$this->relation[$field_index]['table']}`.`{$this->relation[$field_index]['field']}`";
                         }
                         $columns[] = "(SELECT GROUP_CONCAT(DISTINCT (CONCAT_WS('{$this->relation[$field_index]['rel_separator']}'," . implode(',', $tmp_fields) . ")) SEPARATOR ', ')
-                            FROM `{$this->relation[$field_index]['rel_tbl']}`
+                            FROM `{$this->relation[$field_index]['rel_tbl']}` {$join} 
                             WHERE {$where})
                             AS `rel.{$val['table']}.{$val['field']}`, \r\n `{$val['table']}`.`{$val['field']}` AS `{$val['table']}.{$val['field']}` \r\n";
                     } elseif ($this->relation[$field_index]['multi']) {
                         $columns[] = "(SELECT GROUP_CONCAT(DISTINCT `{$this->relation[$field_index]['rel_name']}` SEPARATOR ', ')
-                        FROM `{$this->relation[$field_index]['rel_tbl']}` WHERE
+                        FROM `{$this->relation[$field_index]['rel_tbl']}`  {$join} WHERE
                         FIND_IN_SET(`{$this->relation[$field_index]['rel_tbl']}`.`{$this->relation[$field_index]['rel_field']}`,`{$this->relation[$field_index]['table']}`.`{$this->relation[$field_index]['field']}`)
                         ORDER BY `{$this->relation[$field_index]['rel_name']}` ASC)
                          AS `rel.{$val['table']}.{$val['field']}`, \r\n `{$val['table']}`.`{$val['field']}` AS `{$val['table']}.{$val['field']}` \r\n";
                     } else {
                         $columns[] = "(SELECT `{$this->relation[$field_index]['rel_alias']}`.`{$this->relation[$field_index]['rel_name']}`
-                            FROM `{$this->relation[$field_index]['rel_tbl']}` AS `{$this->relation[$field_index]['rel_alias']}`
+                            FROM `{$this->relation[$field_index]['rel_tbl']}` AS `{$this->relation[$field_index]['rel_alias']}`  {$join}
                             WHERE `{$this->relation[$field_index]['rel_alias']}`.`{$this->relation[$field_index]['rel_field']}` = `{$this->relation[$field_index]['table']}`.`{$this->relation[$field_index]['field']}`
                             LIMIT 1)
                             AS `rel.{$val['table']}.{$val['field']}`, \r\n `{$val['table']}`.`{$val['field']}` AS `{$val['table']}.{$val['field']}` \r\n";
@@ -4723,9 +4755,18 @@ class Xcrud
 
         if ($key) {
             $rel = $this->relation[$key];
+            
+            $join = '';
+            if (is_array($rel['join'])) {
+                foreach ($rel['join'] as $params) {
+                    if (! is_null($params['lfield']) && ! is_null($params['table']) && ! is_null($params['rfield'])) {
+                        $join .= 'INNER JOIN `' . $params['table'] . '` AS '.md5($params['table']).' ON `' . $rel['rel_tbl'] . '`.`' . $params['lfield'] . '` = `' . md5($params['table']) . '`.`' . $params['rfield'] . '` ';
+                    }
+                }
+            }
             if (is_array($rel['rel_name'])) {
                 $tmp_fields = array();
-
+                
                 foreach ($rel['rel_name'] as $tmp) {
                     $tmp_fields[] = '`' . $tmp . '`' . "\r\n";
                 }
@@ -4736,17 +4777,17 @@ class Xcrud
                     $where = '`' . $rel['rel_tbl'] . '`.`' . $rel['rel_field'] . '` = `' . $rel['table'] . '`.`' . $rel['field'] . '`';
                 }
                 $select = "(SELECT GROUP_CONCAT(DISTINCT (CONCAT_WS('{$rel['rel_separator']}'," . implode(',', $tmp_fields) . ")) SEPARATOR ', ')
-                            FROM `{$rel['rel_tbl']}`
+                            FROM `{$rel['rel_tbl']}` {$join}
                             WHERE {$where})\r\n";
             } // multiselect relation
             elseif ($rel['multi']) {
                 $select = "(SELECT GROUP_CONCAT(DISTINCT `{$rel['rel_name']}` SEPARATOR ', ')
-                        FROM `{$rel['rel_tbl']}` WHERE
+                        FROM `{$rel['rel_tbl']}` {$join} WHERE
                         FIND_IN_SET(`{$rel['rel_tbl']}`.`{$rel['rel_field']}`,`{$rel['table']}`.`{$rel['field']}`)
                         ORDER BY `{$rel['rel_name']}` ASC)\r\n";
             } else {
                 $select = "(SELECT `{$rel['rel_alias']}`.`{$rel['rel_name']}`
-                            FROM `{$rel['rel_tbl']}` AS `{$rel['rel_alias']}`
+                            FROM `{$rel['rel_tbl']}` AS `{$rel['rel_alias']}` {$join}
                             WHERE `{$rel['rel_alias']}`.`{$rel['rel_field']}` = `{$rel['table']}`.`{$rel['field']}`
                             LIMIT 1) \r\n";
             }
@@ -5695,12 +5736,15 @@ class Xcrud
                                 'name' => $field,
                                 'value' => $this->result_row[$field]
                             );
+                            if (array_key_exists($field, $this->exception_fields)) {
+                                $this->fields_output[$field]['exception'] = $this->exception_fields[$field]['exception'];
+                            }
                         }
                     } elseif (isset($this->column_callback[$field]) && $mode == 'view') {
                         $path = $this->check_file($this->column_callback[$field]['path'], 'column_callback');
                         include_once ($path);
                         if (is_callable($this->column_callback[$field]['callback']) && $this->result_row) {
-                            @$field_rendered = call_user_func_array($this->field_callback[$field]['callback'], array(
+                            @$field_rendered = call_user_func_array($this->column_callback[$field]['callback'], array(
                                 $this->result_row[$field],
                                 $field,
                                 $mode,
@@ -5721,6 +5765,9 @@ class Xcrud
                                 'name' => $field,
                                 'value' => $this->result_row[$field]
                             );
+                            if (array_key_exists($field, $this->exception_fields)) {
+                                $this->fields_output[$field]['exception'] = $this->exception_fields[$field]['exception'];
+                            }
                         }
                     } else {
                         $attr = $this->get_field_attr($field, $mode);
@@ -5744,6 +5791,9 @@ class Xcrud
                             'name' => $field,
                             'value' => $this->result_row[$field]
                         );
+                        if ($this->exception_fields[$field]) {
+                            $this->fields_output[$field]['exception'] = $this->exception_fields[$field]['exception'];
+                        }
                         if (isset($this->column_pattern[$field]) && $mode == 'view') {
                             $this->fields_output[$field]['field'] = str_ireplace('{value}', $this->fields_output[$field]['field'], $this->column_pattern[$field]);
                             $this->fields_output[$field]['field'] = $this->replace_text_variables($this->fields_output[$field]['field'], $this->result_row, true);
@@ -5866,7 +5916,7 @@ class Xcrud
                     for ($i = 1; $i <= $numpos - $numlr - 1; ++ $i) {
                         $html .= $this->_pagination_item($i, $curent, $limit);
                     }
-                    $html .= '<li class="' . $this->theme_config('pagination_dots') . '"><span>&#133;</span></li>';
+                    $html .= '<li class="' . $this->theme_config('pagination_dots') . '"><a class="' . $this->theme_config('pagination_link') . '">&#133;</a></li>';
                     for ($i = $pages - $numlr + 1; $i <= $pages; ++ $i) {
                         $html .= $this->_pagination_item($i, $curent, $limit);
                     }
@@ -5874,7 +5924,7 @@ class Xcrud
                     for ($i = 1; $i <= $numlr; ++ $i) {
                         $html .= $this->_pagination_item($i, $curent, $limit);
                     }
-                    $html .= '<li class="' . $this->theme_config('pagination_dots') . '"><span>&#133;</span></li>';
+                    $html .= '<li class="' . $this->theme_config('pagination_dots') . '"><a class="' . $this->theme_config('pagination_link') . '">&#133;</a></li>';
                     for ($i = $pages - $numpos + $numlr + 2; $i <= $pages; ++ $i) {
                         $html .= $this->_pagination_item($i, $curent, $limit);
                     }
@@ -5882,13 +5932,13 @@ class Xcrud
                     for ($i = 1; $i <= $numlr; ++ $i) {
                         $html .= $this->_pagination_item($i, $curent, $limit);
                     }
-                    $html .= '<li class="' . $this->theme_config('pagination_dots') . '"><span>&#133;</span></li>';
+                    $html .= '<li class="' . $this->theme_config('pagination_dots') . '"><a class="' . $this->theme_config('pagination_link') . '">&#133;</a></li>';
                     $offset = floor(($numpos - $numlr - $numlr - 1) / 2);
                     for ($i = $curent - $offset; $i <= $curent + $offset; ++ $i) {
                         $html .= $this->_pagination_item($i, $curent, $limit);
                     }
 
-                    $html .= '<li class="' . $this->theme_config('pagination_dots') . '"><span>&#133;</span></li>';
+                    $html .= '<li class="' . $this->theme_config('pagination_dots') . '"><a class="' . $this->theme_config('pagination_link') . '">&#133;</a></li>';
                     for ($i = $pages - $numlr + 1; $i <= $pages; ++ $i) {
                         $html .= $this->_pagination_item($i, $curent, $limit);
                     }
@@ -5908,9 +5958,9 @@ class Xcrud
     {
         $limit1 = $i * $limit - $limit;
         if ($i == $curent)
-            return '<li class="' . $this->theme_config('pagination_active') . '"><span>' . $i . '</span></li>';
+            return '<li class="' . $this->theme_config('pagination_active') . '"><a href="javascript:;" class="' . $this->theme_config('pagination_link') . '" aria-current="page" data-start="' . $limit1 . '">' . $i . '</a></li>';
         else {
-            return '<li class="' . $this->theme_config('pagination_item') . '"><a href="javascript:;" class="xcrud-action" data-start="' . $limit1 . '">' . $i . '</a></li>';
+            return '<li class="' . $this->theme_config('pagination_item') . '"><a href="javascript:;" class="xcrud-action ' . $this->theme_config('pagination_link') . '" data-start="' . $limit1 . '">' . $i . '</a></li>';
         }
     }
 
@@ -6187,8 +6237,7 @@ class Xcrud
             'custom_lists_static',
             'columns_default',
             'unset_custom_columns',
-            'is_mass_remove',
-            'mass_edit',
+            'mass_actions',
             'opened_tab',
             'nested_default_render',
             'nested_default_render_primary',
@@ -6201,7 +6250,8 @@ class Xcrud
             'report_values',
             'group_by',
             'search_lines',
-            'search_submit'
+            'search_submit',
+            'custom_buttons'
         );
     }
 
@@ -6286,7 +6336,7 @@ class Xcrud
             $tag['required'] = 'required';
         }
         if (isset($this->exception_fields[$name])) {
-            $tag['class'] .= ' validation-error';
+            $tag['class'] .= ' ' . $this->theme_config('validation_error_field');
         }
         if (isset($this->validation_pattern[$name])) {
             $tag['data-pattern'] = $this->validation_pattern[$name];
@@ -6331,12 +6381,12 @@ class Xcrud
             $tag['checked'] = '';
         }
         $out = '';
-        
+
         $out .= $this->open_tag('div', $this->theme_config('bool_container'));
         $out .= $this->single_tag($tag, $this->theme_config('bool_field'), $this->field_attr[$name]);
         $out .= $this->single_tag('label', $this->theme_config('bool_label'));
         $out .= $this->close_tag('div');
-        
+
         return $out;
     }
 
@@ -6885,18 +6935,18 @@ class Xcrud
             'tag' => 'input',
             'type' => 'checkbox'
         ];
-        
+
         $label_tag = [
             'tag' => 'label'
         ];
-        
+
         if (! is_array($this->field_attr[$name]['values'])) {
             $this->field_attr[$name]['values'] = $this->parse_comma_separated($this->field_attr[$name]['values']);
         }
         foreach ($this->field_attr[$name]['values'] as $optkey => $opt) {
             $opt = trim(trim($opt, '\''));
             $out .= $this->open_tag('div', $this->theme_config('checkboxes_container'));
-            
+
             /* INPUT */
             $attr = array(
                 'value' => $opt,
@@ -6906,14 +6956,14 @@ class Xcrud
                 $attr['checked'] = '';
             }
             $out .= $this->single_tag($tag, $this->theme_config('checkboxes_field'), array_merge($this->field_attr[$name], $attr));
-            
+
             /* LABEL */
             $out .= $this->open_tag($label_tag, $this->theme_config('checkboxes_label'), [
                 'for' => $optkey
             ]);
             $out .= $this->html_safe($opt);
             $out .= $this->close_tag($label_tag);
-            
+
             $out .= $this->close_tag('div');
         }
         return $out;
@@ -7092,7 +7142,15 @@ class Xcrud
                     $where = "WHERE " . $or_values;
                 }
             }
-            $query = 'SELECT `' . $this->relation[$name]['rel_field'] . '` AS `field`,' . $name_select . $this->get_relation_tree_fields($this->relation[$name]) . ' FROM `' . $this->relation[$name]['rel_tbl'] . '` ' . $where . ' GROUP BY `field` ORDER BY ' . $this->get_relation_ordering($this->relation[$name]);
+            $join = '';
+            if (is_array($this->relation[$name]['join'])) {
+                foreach ($this->relation[$name]['join'] as $params) {
+                    if (! is_null($params['lfield']) && ! is_null($params['table']) && ! is_null($params['rfield'])) {
+                        $join .= 'INNER JOIN `' . $params['table'] . '` AS '.md5($params['table']).' ON `' . $this->relation[$name]['rel_tbl'] . '`.`' . $params['lfield'] . '` = `' . md5($params['table']) . '`.`' . $params['rfield'] . '` ';
+                    }
+                }
+            }
+            $query = 'SELECT `' . $this->relation[$name]['rel_field'] . '` AS `field`,' . $name_select . $this->get_relation_tree_fields($this->relation[$name]) . ' FROM `' . $this->relation[$name]['rel_tbl'] . '` ' . $join . ' ' . $where . ' GROUP BY `field` ORDER BY ' . $this->get_relation_ordering($this->relation[$name]);
 
             $db->query($query);
             $options = $this->resort_relation_opts($db->result(), $this->relation[$name]);
@@ -7698,7 +7756,7 @@ class Xcrud
         }
 
         if (isset($this->exception_fields[$name])) {
-            $tag['class'] .= ' validation-error';
+            $tag['class'] .= ' ' . $this->theme_config('validation_error_field');
         }
 
         if ($attr['coords']) {
@@ -7888,7 +7946,7 @@ class Xcrud
                 }
             }
 
-            if ($oldfile != $filename){
+            if ($oldfile != $filename) {
                 $this->upload_to_remove[$oldfile] = $field;
             }
             $this->upload_to_save[$filename] = $field;
@@ -9087,8 +9145,8 @@ class Xcrud
                 case 'texteditor':
                     if (isset($this->modal[$field])) {
                         $out .= $value;
-                    } else {
-                        $out .= nl2br($this->_cut($value, $field));
+                    } else if (! is_null($value = $this->_cut($value, $field))) {
+                        $out .= nl2br($value);
                     }
                     break;
                 default:
@@ -9101,6 +9159,10 @@ class Xcrud
         if (isset($this->column_pattern[$field])) {
             $out = str_ireplace('{value}', $out, $this->column_pattern[$field]);
             $out = $this->replace_text_variables($out, $row, false);
+        }
+
+        if (trim($out) == '') {
+            $out = '&nbsp;';
         }
 
         if (isset($this->modal[$field]) && $value) {
@@ -9572,13 +9634,15 @@ class Xcrud
     protected function _clone_row()
     {
         if (is_array($this->table_info) && count($this->table_info) && ! $this->table_ro) {
-            $db = Database::get_instance($this->connection, $this->ci);
+            $db = Xcrud_db::get_instance($this->connection);
             $fields = array();
             $row = array();
             $this->find_details_text_variables();
             if ($this->direct_select_tags) {
                 foreach ($this->direct_select_tags as $key => $dsf) {
-                    $fields[$key] = "`{$dsf['table']}`.`{$dsf['field']}` AS `{$key}`";
+                    if ($dsf['table'] == $this->table || (isset($this->join[$dsf['table']]) && $this->join[$dsf['table']]['not_insert'] != true)) {
+                        $fields[$key] = "`{$dsf['table']}`.`{$dsf['field']}` AS `{$key}`";
+                    }
                 }
             }
             if ($fields) {
@@ -9591,9 +9655,10 @@ class Xcrud
                     );
                     $joins = array();
                     foreach ($this->join as $alias => $param) {
-                        $tables[] = '`' . $alias . '`';
-                        $joins[] = "INNER JOIN `{$param['join_table']}` AS `{$alias}`
-                    ON `{$param['table']}`.`{$param['field']}` = `{$alias}`.`{$param['join_field']}` " . $param['additional_cond'];
+                        if ($param['not_insert'] != true) {
+                            $tables[] = '`' . $alias . '`';
+                            $joins[] = "INNER JOIN `{$param['join_table']}` AS `{$alias}` ON `{$param['table']}`.`{$param['field']}` = `{$alias}`.`{$param['join_field']}` " . $param['additional_cond'];
+                        }
                     }
                     $db->query('SELECT ' . implode(',', $fields) . " FROM `{$this->table}` AS `{$this->table}` " . implode(' ', $joins) . " WHERE `{$this->table}`.`{$this->primary_key}` = " . $db->escape($this->primary_val));
                     $row = $db->row();
@@ -9607,18 +9672,21 @@ class Xcrud
             $columns = array();
             $this->primary_ai = false;
             foreach ($this->table_info as $table => $types) {
-                foreach ($types as $row) {
-                    $field_index = "{$table}.{$row['Field']}";
-                    if ($row['Key'] == 'PRI' && $row['Extra'] == 'auto_increment') {
-                        if ($table == $this->table)
-                            $this->primary_ai = "`{$table}`.`{$row['Field']}`";
-                    } elseif ($row['Key'] == 'UNI' or $row['Key'] == 'PRI') {
-                        self::error('Duplication impossible. The table has a unique field.');
-                    } else {
-                        $columns[$field_index] = array(
-                            'table' => $table,
-                            'field' => $row['Field']
-                        );
+                if ($table == $this->table || (isset($this->join[$table]) && $this->join[$table]['not_insert'] != true)) {
+                    foreach ($types as $row) {
+                        $field_index = "{$table}.{$row['Field']}";
+                        if ($row['Key'] == 'PRI' && $row['Extra'] == 'auto_increment') {
+                            if ($table == $this->table) {
+                                $this->primary_ai = "`{$table}`.`{$row['Field']}`";
+                            }
+                        } elseif ($row['Key'] == 'UNI' or $row['Key'] == 'PRI') {
+                            self::error('Duplication impossible. The table has a unique field.');
+                        } else {
+                            $columns[$field_index] = array(
+                                'table' => $table,
+                                'field' => $row['Field']
+                            );
+                        }
                     }
                 }
             }
@@ -9636,15 +9704,30 @@ class Xcrud
                     $postdata[$field] = $pv['value'];
                 }
             }
-            if (! $this->demo_mode)
+            if (! $this->demo_mode) {
+                if (count($this->upload_config)) {
+                    foreach ($this->upload_config as $field => $attr) {
+                        $postdata[$field] = $this->_clone_file($field, $postdata[$field]);
+                    }
+                }
                 $ins_id = $this->_insert($postdata, true, $columns);
+                if ($this->after_clone && $ins_id) {
+                    $path = $this->check_file($this->after_clone['path'], 'after_clone');
+                    include_once ($path);
+                    if (is_callable($this->after_clone['callable'])) {
+                        call_user_func_array($this->after_clone['callable'], array(
+                            $this->primary_val,
+                            $ins_id,
+                            $this
+                        ));
+                        if ($this->exception) {
+                            return $this->call_exception($postdata);
+                        }
+                    }
+                }
+            }
         }
-        if ($this->after && $ins_id) {
-            $this->task = $this->after;
-            $this->primary_val = $ins_id;
-            $this->after = null;
-        } else
-            $this->task = 'list';
+        $this->task = 'list';
         return $this->_run_task();
     }
 
@@ -9671,10 +9754,16 @@ class Xcrud
     protected function _cell_attrib($field, $value, $order, &$row, $is_sum = false, $row_color = false, $row_class = false)
     {
         $attr = array();
-        if (isset($this->column_class[$field]))
+        if (isset($this->column_class[$field])) {
             $column_class = $this->column_class[$field];
-        else
+        } else {
             $column_class = array();
+        }
+        if (isset($this->labels[$field])) {
+            $attr['data-label'] = $this->html_safe($this->labels[$field]);
+        } else {
+            $attr['data-label'] = $this->html_safe($this->_humanize($field));
+        }
         if ($row_class)
             $column_class[] = $row_class;
         if ($field == $order && $this->is_sortable)
@@ -9870,10 +9959,10 @@ class Xcrud
         if (is_array($param)) {
             return $param;
         }
-        if(!is_null($param)){
+        if (! is_null($param)) {
             $param = trim($param);
         }
-        
+
         if (! $param) {
             return array();
         }
@@ -9967,6 +10056,7 @@ class Xcrud
 
         $config = array(
             'url' => XcrudConfig::$scripts_url . '/' . XcrudConfig::$ajax_uri,
+            'table_name' => $instance->table_name,
             'editor_url' => XcrudConfig::$editor_url,
             'editor_init_url' => XcrudConfig::$editor_init_url,
             'force_editor' => XcrudConfig::$force_editor,
@@ -9987,7 +10077,7 @@ class Xcrud
         return $out;
     }
 
-    protected function get_limit_list($limit = 20, $buttons = false)
+    protected function get_limit_list($limit = 20)
     {
         if ($this->result_total > $this->limit_list[0]) {
             $out = '';
@@ -9996,65 +10086,38 @@ class Xcrud
                     $this->limit
                 ), $this->limit_list);
             }
-            if ($buttons) {
-                $out .= $this->open_tag(array(
-                    'tag' => 'div',
-                    'class' => 'btn-group dropdown dropup xcrud-limit-buttons'
-                ));
-                $out .= $this->open_tag(array(
-                    'tag' => 'button',
-                    'type' => 'button',
-                    'class' => 'btn btn-primary dropdown-toggle',
-                    'data-toggle' => 'dropdown',
-                    'id' => 'limit_list'
-                )) . $this->lang('limit_list_' . $this->limit_list[array_search($limit, $this->limit_list)]);
-                $out .= $this->single_tag('span', 'caret');
-                $out .= $this->close_tag(array(
-                    'tag' => 'button'
-                ));
-                $out .= $this->open_tag(array(
-                    'tag' => 'ul',
-                    'class' => 'dropdown-menu dropdown-menu-right',
-                    'aria-labelledby' => 'limit_list'
-                ));
-                foreach ($this->limit_list as $limts) {
-                    if ($limts == $limit) {
-                        $active = ' active';
-                    } else {
-                        $active = '';
-                    }
-                    $out .= $this->open_tag('li');
-                    $out .= $this->open_tag(array(
-                        'tag' => 'a',
-                        'class' => 'xcrud-action' . $active,
-                        'data-limit' => $limts
-                    )) . $this->lang('limit_list_' . $limts) . $this->close_tag('a');
-                    $out .= $this->close_tag('li');
+            $container = [
+                'tag' => 'div'
+            ];
+            $out .= $this->open_tag($container, 'dropdown ' . $this->theme_config('limit_list_container'));
+
+            $button = [
+                'tag' => 'button',
+                'data-bs-toggle' => 'dropdown',
+                'aria-expanded' => 'false'
+            ];
+            $out .= $this->open_tag($button, 'dropdown-toggle ' . $this->theme_config('limit_list_button'));
+            $out .= $this->lang('limit_list_' . $this->limit_list[array_search($limit, $this->limit_list)]);
+            $out .= $this->close_tag($button);
+
+            $menu = [
+                'tag' => 'ul'
+            ];
+            $out .= $this->open_tag($menu, 'dropdown-menu ' . $this->theme_config('limit_list_menu'));
+            foreach ($this->limit_list as $limts) {
+                if ($limts == $limit) {
+                    $active = 'active';
+                } else {
+                    $active = '';
                 }
-                $out .= $this->close_tag('ul');
-                $out .= $this->close_tag(array(
-                    'tag' => 'div'
-                ));
-            } else {
-                $out .= $this->open_tag(array(
-                    'tag' => 'select',
-                    'class' => $this->theme_config('limit_list'),
-                    'name' => 'limit'
-                ), 'xcrud-actionlist xcrud-data');
-                foreach ($this->limit_list as $limts) {
-                    $tag = array(
-                        'tag' => 'option',
-                        'value' => $limts
-                    );
-                    if ($limts == $limit) {
-                        $tag['selected'] = 'selected';
-                    }
-                    $out .= $this->open_tag($tag) . $this->lang($limts) . $this->close_tag($tag);
-                }
-                $out .= $this->close_tag(array(
-                    'tag' => 'select'
-                ));
+                $out .= $this->open_tag('li') . $this->open_tag(array(
+                    'tag' => 'a',
+                    'class' => $active . ' dropdown-item xcrud-action ' . $this->theme_config('limit_list_item'),
+                    'data-limit' => $limts
+                )) . $this->lang('limit_list_' . $limts) . $this->close_tag('a') . $this->close_tag('li');
             }
+            $out .= $this->close_tag($menu);
+            $out .= $this->close_tag($container);
             return $out;
         }
     }
@@ -10528,6 +10591,15 @@ class Xcrud
         return $this->open_tag($label_tag, $label_class, $attr);
     }
 
+    protected function render_field_exception($field)
+    {
+        $out = '';
+        if (array_key_exists('exception', $field)) {
+            $out .= $this->open_tag('div', $this->theme_config('validation_error_text')) . $field['exception'] . $this->close_tag('div');
+        }
+        return $out;
+    }
+
     protected function render_fields_list($mode, $container = 'table', $row = 'tr', $label = 'td', $field = 'td', $tabs_block = 'div', $tabs_head = 'ul', $tabs_row = 'li', $tabs_link = 'a', $tabs_content = 'div', $tabs_pane = 'div')
     {
         $out = '';
@@ -10535,23 +10607,26 @@ class Xcrud
         $raw_out = array();
         foreach ($this->fields_output as $key => $item) {
             if (in_array($key, array_keys($this->custom_fields))) {
-                continue;
+                // continue;
             }
             $row_class = $this->theme_config('details_row');
             if ($this->primary_key == $item['name']) {
                 $row_class .= ' primary';
             }
-            if (isset($this->fields[$item['name']]['tab']) && $this->fields[$item['name']]['tab']) {
-                $tabs_out[$this->fields[$item['name']]['tab']][] = $this->open_tag($row, $row_class) . $this->open_label_tag($key, $label) . $item['label'] . $this->get_field_tooltip($item['name'], $mode) . $this->close_tag($label) . $this->open_tag($field, $this->theme_config('details_field_cell')) . $item['field'] . $this->close_tag($field) . $this->close_tag($row);
+
+            if ($mode == 'report' && $this->parameters[$item['label']]['operator'] == 'between') {
+                $item['field'] .= $this->open_tag('span') . ' até ' . $this->close_tag('span');
+                $item['field'] .= $this->fields_output[$key . '_to']['field'];
+                $row_class_ = $row_class . ' between_field';
             } else {
-                if ($mode == 'report' && $this->parameters[$item['label']]['operator'] == 'between') {
-                    $item['field'] .= $this->open_tag('span') . ' até ' . $this->close_tag('span');
-                    $item['field'] .= $this->fields_output[$key . '_to']['field'];
-                    $row_class_ = $row_class . ' between_field';
-                } else {
-                    $row_class_ = $row_class;
-                }
-                $raw_out[] = $this->open_tag($row, $row_class_) . $this->open_tag_label($key, $label) . $item['label'] . $this->get_field_tooltip($item['name'], $mode) . $this->close_tag($label) . $this->open_tag($field, $this->theme_config('details_field_cell')) . $item['field'] . $this->close_tag($field) . $this->close_tag($row);
+                $row_class_ = $row_class;
+            }
+            $field_rendered = $this->open_tag($row, $row_class_) . $this->open_label_tag($key, $label) . $item['label'] . $this->get_field_tooltip($item['name'], $mode) . $this->close_tag($label) . $this->open_tag($field, $this->theme_config('details_field_cell')) . $item['field'] . $this->close_tag($field) . $this->render_field_exception($item) . $this->close_tag($row);
+            if (isset($this->fields[$item['name']]['tab']) && $this->fields[$item['name']]['tab']) {
+                $tabs_out[$this->fields[$item['name']]['tab']][] = $field_rendered;
+            } else {
+
+                $raw_out[] = $field_rendered;
             }
         }
         if (isset($this->field_tabs[$mode]) or $this->default_tab !== false) {
@@ -10653,10 +10728,13 @@ class Xcrud
             if ($this->primary_key == $item['name']) {
                 $row_class .= ' primary';
             }
+
+            $row_rendered = $this->open_tag($row, $row_class) . $this->open_tag($label, $this->theme_config('details_label_cell')) . $item['label'] . $this->get_field_tooltip($item['name'], $mode) . $this->close_tag($label) . $this->open_tag($field, $this->theme_config('details_field_cell')) . $item['field'] . $this->close_tag($field) . $this->render_field_exception($item) . $this->close_tag($row);
+            ;
             if (isset($this->fields[$item['name']]['tab']) && $this->fields[$item['name']]['tab']) {
-                $tabs_out[$this->fields[$item['name']]['tab']][] = $this->open_tag($row, $row_class) . $this->open_tag($label, $this->theme_config('details_label_cell')) . $item['label'] . $this->get_field_tooltip($item['name'], $mode) . $this->close_tag($label) . $this->open_tag($field, $this->theme_config('details_field_cell')) . $item['field'] . $this->close_tag($field) . $this->close_tag($row);
+                $tabs_out[$this->fields[$item['name']]['tab']][] = $row_rendered;
             } else {
-                $raw_out[] = $this->open_tag($row, $row_class) . $this->open_tag($label, $this->theme_config('details_label_cell')) . $item['label'] . $this->get_field_tooltip($item['name'], $mode) . $this->close_tag($label) . $this->open_tag($field, $this->theme_config('details_field_cell')) . $item['field'] . $this->close_tag($field) . $this->close_tag($row);
+                $raw_out[] = $row_rendered;
             }
         }
         if ((isset($this->field_tabs[$mode]) or $this->default_tab !== false) && ! XcrudConfig::$tabs_in_widgets) {
@@ -10822,7 +10900,36 @@ class Xcrud
      *         Compatibilização com os plugins JS
      *         search constructor and renderer
      */
-    protected function render_search($search_label = false)
+    protected function search_button($search_label = false)
+    {
+        $attr = [
+            'data-bs-toggle' => 'collapse',
+            'href' => '#search_' . $this->table_name
+        ];
+        if ($this->search || Xcrud_config::$search_opened) {
+            $attr['aria-expanded'] = 'true';
+        } else {
+            $attr['aria-expanded'] = 'false';
+        }
+        $out = '';
+        $out .= $this->open_tag('button', 'xcrud-search-toggle ' . $this->theme_config('search_toggle'), $attr);
+        $out .= $this->open_tag('i', $this->theme_config('search_toggle_icon')) . $this->close_tag('i');
+        if (! empty($$search_label)) {
+            $out .= $this->open_tag('span');
+            $out .= $search_label;
+            $out .= $this->close_tag('span');
+        }
+        $out .= $this->close_tag('button');
+        return $out;
+    }
+
+    /**
+     *
+     * @author Ariel Canal
+     *         Compatibilização com os plugins JS
+     *         search constructor and renderer
+     */
+    protected function render_search()
     {
         $out = '';
         $phrase = '';
@@ -10834,31 +10941,16 @@ class Xcrud
         }
 
         if ($this->is_search) {
-            // OPEN SEARCH BUTTON
-            $attr = array(
-                'class' => 'xcrud-search-toggle',
-                'href' => 'javascript:;'
-            );
-            if ($this->search or XcrudConfig::$search_opened) {
-                $attr['style'] = 'display:none;';
+            $container_tag = [
+                'tag' => 'div',
+                'class' => 'xcrud-search-form collapse',
+                'id' => 'search_' . $this->table_name
+            ];
+            if ($this->search || Xcrud_config::$search_opened) {
+                $container_tag['class'] = ' show';
             }
-            $out .= $this->open_tag('a', $this->theme_config('search_open'), $attr);
-
-            if ($search_label) {
-                $out .= $search_label;
-            } else {
-                $out .= $this->lang('search');
-                $out .= $this->close_tag('a');
-            }
-
             // ABRE CONTAINER
-            $attr = array(
-                'class' => 'xcrud-search'
-            );
-            if (! $this->search && ! XcrudConfig::$search_opened) {
-                $attr['class'] .= ' hide';
-            }
-            $out .= $this->open_tag('span', $this->theme_config('search_container'), $attr);
+            $out .= $this->open_tag($container_tag, $this->theme_config('search_container'));
 
             // LINES
             for ($i = 1; $i <= $this->search_lines; $i ++) {
@@ -10894,7 +10986,7 @@ class Xcrud
                     $phrase = $this->search_submit[$i]['phrase'];
                 }
                 $optlist = array();
-                if (XcrudConfig::$search_all) {
+                if (Xcrud_config::$search_all) {
                     $optlist[] = $this->open_tag('option', '', array(
                         'value' => ''
                     )) . $this->lang('all_fields') . $this->close_tag('option');
@@ -10914,14 +11006,15 @@ class Xcrud
                                 $name = $this->html_safe($this->_humanize($tmp['field']));
                             }
                         }
-                        $attr = array(
+                        $option = [
+                            'tag' => 'option',
                             'value' => $field,
                             'data-type' => $this->field_type[$field]
-                        );
+                        ];
                         if ($field == $this->search_submit[$i]['column']) {
-                            $attr['selected'] = '';
+                            $option['selected'] = '';
                         }
-                        $optlist[] = $this->open_tag('option', '', $attr) . $name . $this->close_tag('option');
+                        $optlist[] = $this->open_tag($option) . $name . $this->close_tag($option);
                         $fieldlist = $this->search_fieldlist($field, $phrase, $fieldlist, $i);
                     }
                 } elseif ($this->search_default !== false) { // not only 'all'
@@ -10929,65 +11022,75 @@ class Xcrud
                         if (in_array($field, array_keys($this->report))) {
                             continue;
                         }
-                        $attr = array(
+                        $option = [
+                            'tag' => 'option',
                             'value' => $field,
                             'data-type' => $this->field_type[$field]
-                        );
+                        ];
                         if (isset($this->search_submit[$i]) && $field == $this->search_submit[$i]['column']) {
-                            $attr['selected'] = '';
+                            $option['selected'] = '';
                         }
-                        $optlist[] = $this->open_tag('option', '', $attr) . $title . $this->close_tag('option');
+                        $optlist[] = $this->open_tag($option) . $title . $this->close_tag($option);
                         $fieldlist = $this->search_fieldlist($field, $phrase, $fieldlist, $i);
                     }
                 }
-                $out .= $this->open_tag('span', $this->theme_config('search_line_container'), $attr);
+                // LINE CONTENT
+                $line_container = [
+                    'tag' => 'span'
+                ];
+                // $out .= $this->open_tag($line_container, 'line_container '.$this->theme_config('search_line_container'));
                 $out .= implode('', $fieldlist);
-                $attr = array(
-                    'class' => 'xcrud-data',
-                    'name' => 'search_submit][' . $i . '][column'
-                );
+                $name = 'search_submit][' . $i . '][column';
                 if ($this->search_default === false && ! $this->search_columns) {
-                    $out .= $this->open_tag(array(
+                    $input = [
                         'tag' => 'input',
-                        'type' => 'hidden'
-                    ), 'xcrud-columns-select ' . $this->theme_config('search_fieldlist'), $attr);
+                        'type' => 'hidden',
+                        'name' => $name
+                    ];
+                    $out .= $this->single_tag($input, 'xcrud-columns-select xcrud-data ' . $this->theme_config('search_fieldlist'));
                 } else {
-                    $out .= $this->open_tag('select', 'xcrud-columns-select ' . $this->theme_config('search_fieldlist'), $attr);
+                    $select = [
+                        'tag' => 'select',
+                        'name' => $name
+                    ];
+                    $out .= $this->open_tag($select, 'xcrud-columns-select xcrud-data ' . $this->theme_config('search_fieldlist'));
                     // $out .= $this->open_tag('option', '', array('value' => '')) .
                     // $this->lang('all_fields') . $this->close_tag('option');
                     $out .= implode('', $optlist);
-                    $out .= $this->close_tag('select');
+                    $out .= $this->close_tag($select);
                 }
-                $out .= $this->close_tag('span');
+                // $out .= $this->close_tag($line_container);
             }
-            // FECHA CONTAINER
-            $out .= $this->close_tag('span');
 
             // BOTÕES
-            $group = array(
+            $button_group = array(
                 'tag' => 'span',
                 'class' => $this->theme_config('search_button_group')
             );
-            $out .= $this->open_tag($group);
+            // $out .= $this->open_tag($button_group);
 
             $attr = array(
                 'class' => 'xcrud-action',
                 'href' => 'javascript:;',
                 'data-search' => 1
             );
-            $out .= $this->open_tag('a', $this->theme_config('search_go'), $attr);
-            $out .= $this->lang('go') . $this->close_tag('a');
+            $out .= $this->open_tag('button', $this->theme_config('search_go'), $attr);
+            $out .= $this->lang('go');
+            $out .= $this->close_tag('button');
             if ($this->search) {
                 $attr = array(
                     'class' => 'xcrud-action',
                     'href' => 'javascript:;',
                     'data-search' => 0
                 );
-                $out .= $this->open_tag('a', $this->theme_config('search_reset'), $attr);
-                $out .= $this->lang('reset') . $this->close_tag('a');
+                $out .= $this->open_tag('button', $this->theme_config('search_reset'), $attr);
+                $out .= $this->lang('reset') . $this->close_tag('button');
             }
 
-            $out .= $this->close_tag($group);
+            // $out .= $this->close_tag($button_group);
+
+            // FECHA CONTAINER
+            $out .= $this->close_tag($container_tag);
         }
         return $out;
     }
@@ -11068,8 +11171,8 @@ class Xcrud
                     $fieldlist['date'] .= $this->open_tag('option', '', array(
                         'value' => ''
                     )) . $this->lang('choose_range') . $this->close_tag('option');
-                    if (XcrudConfig::$available_date_ranges) {
-                        foreach (XcrudConfig::$available_date_ranges as $range) {
+                    if (Xcrud_config::$available_date_ranges) {
+                        foreach (Xcrud_config::$available_date_ranges as $range) {
                             $attr_rs = array(
                                 'value' => $range
                             );
@@ -11093,7 +11196,6 @@ class Xcrud
                     $attr['name'] = 'search_submit][' . $line . '][phrase][to';
                     $attr['value'] = (isset($phrase['to']) && $field == @$this->search_submit[$line]['column']) ? $phrase['to'] : '';
                     $fieldlist['date'] .= $this->single_tag('input', 'xcrud-datepicker-to ' . $class . ' ' . $this->theme_config('search_to'), $attr);
-                    // $fieldlist['date'] .= $this->close_tag('span');
                 }
                 break;
             case 'select':
@@ -11214,10 +11316,10 @@ class Xcrud
     {
         $out = '';
         $out .= $this->open_tag($row, 'xcrud-th');
-        if ($this->is_mass_remove || count($this->mass_edit)) {
-            $out .= $this->open_tag($item, 'xcrud-mass') . $this->open_tag('span', $this->theme_config('mass_checkbox_header_container')) . $this->single_tag('input', 'xcrud-mass ' . $this->theme_config('mass_checkbox_header'), array(
+        if (count($this->mass_actions)) {
+            $out .= $this->open_tag($item, 'xcrud-mass-checkbox-container xcrud-mass-checkbox-header ' . $this->theme_config('mass_checkbox_header_container')) . $this->single_tag('input', 'xcrud-mass-checkbox xcrud-mass-checkbox-header ' . $this->theme_config('mass_checkbox_header'), array(
                 'type' => 'checkbox'
-            )) . $this->single_tag('label') . $this->close_tag('span') . $this->close_tag($item);
+            )) . $this->single_tag('label') . $this->close_tag($item);
         }
         if ($this->is_numbers) {
             $out .= $this->open_tag($item, 'xcrud-num') . '&#35;' . $this->close_tag($item);
@@ -11293,37 +11395,37 @@ class Xcrud
                     }
                 }
                 $out .= $this->open_tag($row_tag, 'xcrud-row xcrud-row-' . $i);
-                if ($this->is_mass_remove || count($this->mass_edit)) {
-                    $out .= $this->open_tag($item, 'xcrud-mass');
+                if (count($this->mass_actions)) {
+                    $out .= $this->open_tag($item, 'xcrud-mass ' . $this->theme_config('mass_checkbox_container'));
                     if (! $this->table_ro && ($this->is_edit($row) || $this->is_remove($row))) {
-                        $out .= $this->open_tag('span', $this->theme_config('mass_checkbox_container')) . $this->single_tag('input', 'xcrud-mass xcrud-data ' . $this->theme_config('mass_checkbox'), array(
+                        $out .= $this->single_tag('input', 'xcrud-mass-checkbox ' . $this->theme_config('mass_checkbox'), array(
                             'type' => 'checkbox',
                             'name' => 'mass_list][' . $row['primary_key'],
                             'value' => $row['primary_key']
-                        )) . $this->single_tag('label') . $this->close_tag('span');
+                        )) . $this->single_tag('label');
                     }
                     $out .= $this->close_tag($item);
                 }
                 if ($this->is_numbers) {
-                    $out .= $this->open_tag($item, 'xcrud-num', $this->_cell_attrib(false, false, false, $row, false, $row_color, $row_class)) . ($key + $this->start + 1) . $this->close_tag($item);
+                    $out .= $this->open_tag($item, 'xcrud-num', $this->_cell_attrib(false, false, false, $row, false, $row_color, $row_class)) . $this->open_tag('span') . ($key + $this->start + 1) . $this->close_tag('span') . $this->close_tag($item);
                 }
                 if (($this->is_edit || $this->is_remove || $this->is_view || $this->buttons || $this->is_duplicate || $this->grid_restrictions) && $this->task != 'print' && $this->buttons_position == 'left') {
-                    $out .= $this->open_tag($item, 'xcrud-actions' . ((XcrudConfig::$fixed_action_buttons) ? '' : ''), $this->_cell_attrib(false, false, false, $row, false, $row_color, $row_class));
+                    $out .= $this->open_tag($item, 'xcrud-actions' . ((Xcrud_config::$fixed_action_buttons) ? ' xcrud-actions-fixed' : ''), $this->_cell_attrib(false, false, false, $row, false, $row_color, $row_class));
                     $out .= $this->_render_list_buttons($row);
-                    $out .= $this->close_tag($item);
+                    $out .= $this->open_tag('span') . $this->close_tag($item);
                 }
                 foreach ($this->columns as $field => $fitem) {
                     $value = $row[$field];
                     if (isset($this->field_type[$field]) && ($this->field_type[$field] == 'password' or $this->field_type[$field] == 'hidden'))
                         continue;
-                    $out .= $this->open_tag($item, '', $this->_cell_attrib($field, $value, $this->order_column, $row, false, $row_color, $row_class));
+                    $out .= $this->open_tag($item, '', $this->_cell_attrib($field, $value, $this->order_column, $row, false, $row_color, $row_class)) . $this->open_tag('span');
                     $out .= $this->_render_list_item($field, $value, $row['primary_key'], $row);
-                    $out .= $this->close_tag($item);
+                    $out .= $this->open_tag('span') . $this->close_tag($item);
                 }
                 if (($this->is_edit || $this->is_remove || $this->is_view || $this->buttons || $this->is_duplicate || $this->grid_restrictions) && $this->task != 'print' && $this->buttons_position == 'right') {
-                    $out .= $this->open_tag($item, 'xcrud-actions' . ((XcrudConfig::$fixed_action_buttons) ? ' xcrud-actions-fixed' : '') . (XcrudConfig::$fixed_action_buttons ? ' xcrud-fix' : ''), $this->_cell_attrib(false, false, false, $row, false, $row_color, $row_class));
+                    $out .= $this->open_tag($item, 'xcrud-actions' . ((Xcrud_config::$fixed_action_buttons) ? ' xcrud-actions-fixed' : '') . (Xcrud_config::$fixed_action_buttons ? ' xcrud-fix' : ''), $this->_cell_attrib(false, false, false, $row, false, $row_color, $row_class)) . $this->open_tag('span');
                     $out .= $this->_render_list_buttons($row);
-                    $out .= $this->close_tag($item);
+                    $out .= $this->open_tag('span') . $this->close_tag($item);
                 }
                 $out .= $this->close_tag($row_tag);
                 $i = 1 - $i;
@@ -11336,7 +11438,7 @@ class Xcrud
             if ($this->is_numbers) {
                 ++ $j;
             }
-            if ($this->is_mass_remove || count($this->mass_edit)) {
+            if (count($this->mass_actions)) {
                 ++ $j;
             }
             $out .= $this->open_tag($row_tag, 'xcrud-row') . $this->open_tag($item, '', array(
@@ -11355,7 +11457,7 @@ class Xcrud
         $out = '';
         if ($this->sum && $this->result_list) {
             $out .= $this->open_tag($row, 'xcrud-tf');
-            if ($this->is_mass_remove || count($this->mass_edit)) {
+            if (count($this->mass_actions)) {
                 $out .= $this->open_tag($item, 'xcrud-mass') . '&nbsp;' . $this->close_tag($item);
             }
             if ($this->is_numbers) {
@@ -11379,10 +11481,10 @@ class Xcrud
         return $out;
     }
 
-    protected function render_limitlist($buttons = false)
+    protected function render_limitlist()
     {
         if ($this->is_limitlist) {
-            return $this->get_limit_list($this->limit, $buttons);
+            return $this->get_limit_list($this->limit);
         }
         return '';
     }
@@ -11454,28 +11556,12 @@ class Xcrud
             ));
         }
 
-        $out .= $this->render_message();
+        $out .= $this->render_messages();
         $out .= implode('', $this->hidden_fields_output);
 
         return $out;
     }
 
-    protected function render_message()
-    {
-        $out = '';
-        if ($this->message) {
-            $tag = array(
-                'tag' => 'input',
-                'type' => 'hidden',
-                'class' => 'xcrud-callback-message',
-                'name' => $this->message['type'],
-                'value' => $this->message['text']
-            );
-            $out .= $this->single_tag($tag);
-        }
-        return $out;
-    }
-    
     protected function render_custom_buttons()
     {
         $out = '';
@@ -11500,7 +11586,7 @@ class Xcrud
         if (is_array($name) && isset($this->custom_buttons[$name['label']])) {
             // custom_buttons
             $button = $name;
-            
+
             $tag = array(
                 'tag' => 'a',
                 'href' => $button['link']
@@ -11634,7 +11720,7 @@ class Xcrud
             return $this->render_button('print', 'print', '', $class . ' xcrud-in-new-window', $icon);
         }
     }
-    
+
     protected function refresh_button($class = '', $icon = '')
     {
         if ($this->task == "list") {
@@ -12434,24 +12520,45 @@ class Xcrud
     {
         $out = '';
         if (isset($this->custom_filter[$filter_name])) {
-            $out .= $this->open_tag('div', $this->theme_config('custom_filter_container'));
+            if (empty($this->custom_filter[$filter_name]['active'])) {
+                $this->custom_filter[$filter_name]['active'] = 'all';
+            }
+            $out .= $this->open_tag('div', 'btn-group ' . $this->theme_config('custom_filter_container') . ' ' . $this->custom_filter[$filter_name]['container_class'], [
+                "id" => "custom-filter-" . $filter_name,
+                'role' => 'group'
+            ]);
+            $out .= $this->open_tag('button', 'btn ' . $this->theme_config('custom_filter_toggle') . ' ' . $this->custom_filter[$filter_name]['toggle_class'] . ' dropdown-toggle', [
+                "data-bs-toggle" => "dropdown",
+                "aria-expanded" => "false"
+            ]);
+            $out .= $this->lang($this->custom_filter[$filter_name]['active']);
+            $out .= $this->close_tag('button');
 
+            $out .= $this->open_tag('div', 'btn-group', [
+                'role' => "group"
+            ]);
+            $out .= $this->open_tag('ul', 'dropdown-menu ' . $this->theme_config('custom_filter_menu'));
             $attr['data-filter'] = $filter_name;
             $attr['data-nomovepage'] = 'true';
             $attr['data-table'] = strtolower($this->table);
-            foreach ($this->custom_filter[$filter_name] as $label => $config) {
-                if ($config == "all")
-                    $attr['data-label'] = $this->custom_filter_all_label[$filter_name];
-                else
-                    $attr['data-label'] = $label;
+            $attr['href'] = "#";
+            foreach ($this->custom_filter[$filter_name]['options'] as $label => $config) {
+                $attr['data-label'] = $label;
 
-                if ((! isset($this->custom_filter_active[$filter_name]) && $config == 'all') || $this->custom_filter_active[$filter_name] == $attr['data-label'])
-                    $class = $this->theme_config('custom_filter_active');
-                else
+                if ($this->custom_filter[$filter_name]['active'] == $attr['data-label']) {
+                    $class = $this->theme_config('custom_filter_item_active') . ' active';
+                } else {
                     $class = $this->theme_config('custom_filter_item');
+                }
 
-                $out .= $this->open_tag('button', 'xcrud-action ' . $class, $attr) . $this->lang($attr['data-label']) . $this->close_tag('button');
+                $out .= $this->open_tag('a', 'xcrud-action dropdown-item ' . $class, $attr) . $this->lang($attr['data-label']) . $this->close_tag('a');
+
+                if ($label == "all") {
+                    $out .= $this->open_tag('div', 'dropdown-divider') . $this->close_tag('div');
+                }
             }
+            $out .= $this->close_tag('ul');
+            $out .= $this->close_tag('div');
             $out .= $this->close_tag('div');
         }
         return $out;
@@ -13163,26 +13270,47 @@ class Xcrud
         }
         return $out;
     }
-
-    public function unset_mass_remove($bool = true)
+    
+    public function mass_remove(bool $bool = true)
     {
-        $this->is_mass_remove = ! (bool) $bool;
-        return $this;
-    }
-
-    public function mass_edit($fields)
-    {
-        $fdata = $this->_parse_field_names($fields, 'mass_edit');
-        $this->mass_edit = array();
-        foreach ($fdata as $fitem) {
-            $this->mass_edit[$fitem['table'] . '.' . $fitem['field']] = $fitem;
+        if ($bool) {
+            $this->mass_actions['delete'] = $bool;
+        } else {
+            unset($this->mass_actions['delete']);
         }
         return $this;
     }
-
-    public function render_mass_edit_actions()
+    
+    public function mass_merge(string|bool $callable, string $path)
     {
-        if ($this->is_mass_remove || count($this->mass_edit)) {
+        if ($callable) {
+            $this->mass_actions['merge'] = [
+                'callable' => $callable,
+                'path' => "/../../helpers/" . $path
+            ];
+        } else {
+            unset($this->mass_actions['merge']);
+        }
+        return $this;
+    }
+    
+    public function mass_edit(array|string|bool $fields)
+    {
+        if (! is_bool($fields)) {
+            $fdata = $this->_parse_field_names($fields, 'mass_edit');
+            foreach ($fdata as $fitem) {
+                $this->mass_actions['edit'][$fitem['table'] . '.' . $fitem['field']] = $fitem;
+            }
+        } else if (! $fields) {
+            unset($this->mass_actions['edit']);
+        }
+        return $this;
+    }
+    
+    
+    public function render_mass_actions()
+    {
+        if (count($this->mass_actions)) {
             $out = $this->open_tag('div', $this->theme_config('mass_container_class'));
             $out .= $this->open_tag('select', 'xcrud-mass-select not_select2 not_select2 xcrud-data ' . $this->theme_config('mass_select'), array(
                 'name' => 'mass_task'
@@ -13190,16 +13318,23 @@ class Xcrud
             $out .= $this->open_tag('option', '', array(
                 'value' => 0
             )) . $this->lang('mass_action') . $this->close_tag('option');
-            if (count($this->mass_edit))
+            if (array_key_exists('edit',$this->mass_actions)) {
                 $out .= $this->open_tag('option', '', array(
-                    'value' => 1
+                    'value' => 'edit'
                 )) . $this->lang('mass_edit') . $this->close_tag('option');
-            if ($this->is_mass_remove)
+            }
+            if (array_key_exists('merge',$this->mass_actions)) {
                 $out .= $this->open_tag('option', '', array(
-                    'value' => 2
+                    'value' => 'merge'
+                )) . $this->lang('mass_merge') . $this->close_tag('option');
+            }
+            if (array_key_exists('remove',$this->mass_actions)) {
+                $out .= $this->open_tag('option', '', array(
+                    'value' => 'remove'
                 )) . $this->lang('mass_remove') . $this->close_tag('option');
+            }
             $out .= $this->close_tag('select');
-            $out .= $this->open_tag('a', 'xcrud-action ' . $this->theme_config('mass_apply_button'), array(
+            $out .= $this->open_tag('a', 'xcrud-action ' . $this->theme_config('mass_button'), array(
                 'data-task' => 'mass',
                 'href' => 'javascript:;',
                 'data-after' => 'list',
@@ -13213,23 +13348,21 @@ class Xcrud
     public function render_mass_edit_form($container = 'table', $row = 'tr', $label = 'td', $field = 'td', $tabs_block = 'div', $tabs_head = 'ul', $tabs_row = 'li', $tabs_link = 'a', $tabs_content = 'div', $tabs_pane = 'div')
     {
         $out = "";
-        if ($this->is_mass_remove || count($this->mass_edit)) {
-            $out .= '<div class="panel-body xcrud-mass-form">';
+        if (count($this->mass_actions)) {
+            $out .= $this->open_tag('div', 'xcrud-mass-form ' . $this->theme_config('mass_form_container'));
             foreach ($this->mass_edit as $field => $fitem) {
                 $type = $this->field_type[$field];
                 $lbl = $this->labels[$field];
-                if ($type == "textarea" || $type == "texteditor")
+                if ($type == "textarea" || $type == "texteditor") {
                     $type = "text";
-
-                $out .= $this->open_tag('div', 'form-group form-material col-md-3 col-sm-6 col-xs-12', array(
+                }
+                $out .= $this->open_tag('div', 'xcrud-mass-form-group ' . $this->theme_config('mass_form_field_group'), array(
                     'id' => $field
                 ));
-                $out .= $this->open_tag('label', 'control-label', array(
+                $out .= $this->open_tag('label', $this->theme_config('mass_form_label'), array(
                     'for' => $field
                 )) . $lbl . $this->close_tag('label');
                 $func = 'create_' . $type;
-                unset($attr);
-                $attr['class'] = "xcrud-input";
                 if (method_exists($this, $func))
                     $field = call_user_func_array(array(
                         $this,
@@ -13237,13 +13370,15 @@ class Xcrud
                     ), array(
                         $field,
                         null,
-                        $attr
+                        [
+                            'class' => 'xcrud-input ' . $this->theme_config('mass_form_field')
+                        ]
                     ));
 
                 $out .= $field;
                 $out .= $this->close_tag('div');
             }
-            $out .= '</div>';
+            $out .= $this->close_tag('div');
             return $out;
         }
     }
@@ -13252,63 +13387,75 @@ class Xcrud
     {
         if ($this->table_ro)
             return self::error('Forbidden');
-
-        $this->set_custom_lists();
-        $this->_set_field_types('list');
-        $this->_list(false);
-        if ($this->_post('mass_task', '0') == '1') {
-            $postdata = $this->_post('postdata');
-            $postdata = $this->check_postdata($postdata, true);
-            $pd = new Xcrud_postdata($postdata, $this);
-            $postdata = $pd->to_array();
-            $this->validate_postdata($postdata);
-            if ($this->exception) {
-                return $this->call_exception($postdata);
-            }
-
-            $this->_set_field_types('edit', true);
-            if ($this->before_update) {
-                $path = $this->check_file($this->before_update['path'], 'before_update');
+            
+            $this->set_custom_lists();
+            $this->_set_field_types('list');
+            $this->_list(false);
+            if ($this->_post('mass_task') == 'edit') {
+                $postdata = $this->_post('postdata');
+                $postdata = $this->check_postdata($postdata, true);
+                $pd = new Xcrud_postdata($postdata, $this);
+                $postdata = $pd->to_array();
+                $this->validate_postdata($postdata);
+                if ($this->exception) {
+                    return $this->call_exception($postdata);
+                }
+                
+                $this->_set_field_types('edit', true);
+                if ($this->before_update) {
+                    $path = $this->check_file($this->before_update['path'], 'before_update');
+                    include_once ($path);
+                    if (is_callable($this->before_update['callable'])) {
+                        call_user_func_array($this->before_update['callable'], array(
+                            $pd,
+                            $this->_post('mass_list', array()),
+                            $this
+                        ));
+                        $postdata = $pd->to_array();
+                        
+                        if ($this->exception) {
+                            return $this->call_exception($postdata);
+                        }
+                    }
+                }
+                foreach ($this->result_list as $key => $row) {
+                    if (in_array($row['primary_key'], $this->_post('mass_list', array())) && $this->is_edit($row)) {
+                        $this->_update($postdata, $row['primary_key']);
+                    }
+                }
+                unset($postdata);
+            } else if ($this->_post('mass_task') == 'merge' && isset($this->mass_actions['merge'])) {
+                $this->_set_field_types('edit', true);
+                $path = $this->check_file($this->mass_actions['merge']['path'], 'merge');
                 include_once ($path);
-                if (is_callable($this->before_update['callable'])) {
-                    call_user_func_array($this->before_update['callable'], array(
-                        $pd,
+                if (is_callable($this->mass_actions['merge']['callable'])) {
+                    call_user_func_array($this->mass_actions['merge']['callable'], array(
                         $this->_post('mass_list', array()),
                         $this
                     ));
-                    $postdata = $pd->to_array();
-
                     if ($this->exception) {
                         return $this->call_exception($postdata);
                     }
                 }
-            }
-            foreach ($this->result_list as $key => $row) {
-                if (in_array($row['primary_key'], $this->_post('mass_list', array())) && $this->is_edit($row)) {
-                    $this->_update($postdata, $row['primary_key']);
-                }
-            }
-            unset($postdata);
-            $this->_set_field_types('list');
-        } else if ($this->_post('mass_task', '0') == '2') {
-            foreach ($this->result_list as $key => $row) {
-                if (in_array($row['primary_key'], $this->_post('mass_list', array())) && $this->is_remove($row)) {
-                    if ($this->replace_remove) {
-                        $path = $this->check_file($this->replace_remove['path'], 'replace_remove');
-                        include_once ($path);
-                        if (is_callable($this->replace_remove['callable'])) {
-                            call_user_func_array($this->replace_remove['callable'], array(
-                                $this->_post('mass_list', array()),
-                                $this
-                            ));
+            } else if ($this->_post('mass_task') == 'delete') {
+                foreach ($this->result_list as $key => $row) {
+                    if (in_array($row['primary_key'], $this->_post('mass_list', array())) && $this->is_remove($row)) {
+                        if ($this->replace_remove) {
+                            $path = $this->check_file($this->replace_remove['path'], 'replace_remove');
+                            include_once ($path);
+                            if (is_callable($this->replace_remove['callable'])) {
+                                call_user_func_array($this->replace_remove['callable'], array(
+                                    $this->_post('mass_list', array()),
+                                    $this
+                                ));
+                            }
                         }
                     }
                 }
             }
             $this->_set_field_types('list');
-        }
-        $this->_list();
-        return $this->_render_list();
+            $this->_list();
+            return $this->_render_list();
     }
 
     function opened_tab($id = false)

@@ -18,7 +18,7 @@ else{
 				        <div class="xcrud-top-actions">
 							<div class="pull-left">
 								<?php echo $this->add_button('btn btn-success','icon wb-plus'); ?>
-								<?php echo $this->render_mass_edit_actions();?>
+								<?php echo $this->render_mass_actions();?>
 				        	</div>
 							<div class="pull-right">
 					        	<?php echo $this->render_search(); ?>
