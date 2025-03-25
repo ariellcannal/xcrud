@@ -6781,45 +6781,42 @@ class Xcrud
             return $this->create_view_radio($name, $value, $tag);
         }
         $out = '';
-        $tag = $tag + array(
+        
+        $container = [
+            'tag' => 'div'
+        ];
+        
+        $field = $tag + [
             'tag' => 'input',
-            'type' => 'radio',
-            'data-type' => 'radio'
-        );
-
-        $label_tag = array(
-            'tag' => 'label',
-            'class' => 'xcrud-radio-label'
-        );
-
+            'type' => 'radio'
+        ];
+        
+        $label = [
+            'tag' => 'label'
+        ];
+        
         if (is_array($this->field_attr[$name]['values'])) {
-            foreach ($this->field_attr[$name]['values'] as $optkey => $opt) {
-                $out .= $this->open_tag('div', $this->theme_config('radio_container')) . $this->open_tag($label_tag);
-                $attr = array(
-                    'value' => $optkey
-                );
-                if ($optkey == $value) {
-                    $attr['checked'] = '';
-                }
-                $out .= $this->single_tag($tag, $this->theme_config('radio_field'), array_merge($this->field_attr[$name], $attr));
-                $out .= $this->html_safe($opt) . $this->close_tag($label_tag) . $this->close_tag('div');
-            }
+            $options = $this->field_attr[$name]['values'];
+            $value_var = 'key';
         } else {
-            $tmp = $this->parse_comma_separated($this->field_attr[$name]['values']);
-            foreach ($tmp as $opt) {
-                $opt = trim(trim($opt, '\''));
-                $out .= $this->open_tag('div', $this->theme_config('radio_container')) . $this->open_tag($label_tag);
-                $attr = array(
-                    'value' => $opt
-                );
-                if ($opt == $value) {
-                    $attr['checked'] = '';
-                }
-                $out .= $this->single_tag($tag, $this->theme_config('radio_field'), array_merge($this->field_attr[$name], $attr));
-                $out .= $this->html_safe($opt) . $this->close_tag($label_tag) . $this->close_tag('div');
-            }
+            $options = $this->parse_comma_separated($this->field_attr[$name]['values']);
+            $value_var = 'val';
         }
-        $out .= $this->close_tag($tag);
+        foreach ($options as $key => $val) {
+            $value_val = $$value_var;
+            $attr = [
+                'value' => $value_val
+            ];
+            if ($value_val == $value) {
+                $attr['checked'] = '';
+            }
+            $out .= $this->open_tag($container, $this->theme_config('radio_container'));
+            $out .= $this->single_tag($field, $this->theme_config('radio_field'), array_merge($this->field_attr[$name], $attr));
+            $out .= $this->open_tag($label, $this->theme_config('radio_label'));
+            $out .= $this->html_safe(val);
+            $out .= $this->close_tag($label);
+            $out .= $this->close_tag($container);
+        }
         return $out;
     }
 
