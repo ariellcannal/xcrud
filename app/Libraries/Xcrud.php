@@ -1,5 +1,5 @@
 <?php
-namespace Xcrud\Libraries;
+namespace CANNALxcrud;
 
 use Xcrud\Config\XcrudConfig;
 use Xcrud\Libraries\Database;
@@ -6384,7 +6384,7 @@ class Xcrud
 
         $out .= $this->open_tag('div', $this->theme_config('bool_container'));
         $out .= $this->single_tag($tag, $this->theme_config('bool_field'), $this->field_attr[$name]);
-        $out .= $this->single_tag('label', $this->theme_config('bool_label'));
+        $out .= $this->single_tag('label', $this->theme_config('bool_label'),['for'=>$tag['id']]);
         $out .= $this->close_tag('div');
 
         return $out;
@@ -11314,9 +11314,13 @@ class Xcrud
         $out = '';
         $out .= $this->open_tag($row, 'xcrud-th');
         if (count($this->mass_actions)) {
-            $out .= $this->open_tag($item, 'xcrud-mass-checkbox-container xcrud-mass-checkbox-header ' . $this->theme_config('mass_checkbox_header_container')) . $this->single_tag('input', 'xcrud-mass-checkbox xcrud-mass-checkbox-header ' . $this->theme_config('mass_checkbox_header'), array(
-                'type' => 'checkbox'
-            )) . $this->single_tag('label') . $this->close_tag($item);
+            $out .= $this->open_tag($item).$this->open_tag('div',  'xcrud-mass-checkbox-container xcrud-mass-checkbox-header ' . $this->theme_config('mass_checkbox_header_container')) . $this->single_tag('input', 'xcrud-mass-checkbox xcrud-mass-checkbox-header ' . $this->theme_config('mass_checkbox_header_input'), array(
+                'type' => 'checkbox',
+                'id' => 'mass_checkbox_header_input'
+            )) . $this->single_tag('label', $this->theme_config('mass_checkbox_header_label'), [
+                'for' => 'mass_checkbox_header_input'
+            ]);
+            $out .= $this->close_tag('div') . $this->close_tag($item);
         }
         if ($this->is_numbers) {
             $out .= $this->open_tag($item, 'xcrud-num') . '&#35;' . $this->close_tag($item);
@@ -11393,15 +11397,18 @@ class Xcrud
                 }
                 $out .= $this->open_tag($row_tag, 'xcrud-row xcrud-row-' . $i);
                 if (count($this->mass_actions)) {
-                    $out .= $this->open_tag($item, 'xcrud-mass ' . $this->theme_config('mass_checkbox_container'));
+                    $out .= $this->open_tag($item) . $this->open_tag('div', 'xcrud-mass ' . $this->theme_config('mass_checkbox_row_container'));
                     if (! $this->table_ro && ($this->is_edit($row) || $this->is_remove($row))) {
-                        $out .= $this->single_tag('input', 'xcrud-mass-checkbox ' . $this->theme_config('mass_checkbox'), array(
+                        $out .= $this->single_tag('input', 'xcrud-mass-checkbox xcrud-data ' . $this->theme_config('mass_checkbox_row_input'), array(
                             'type' => 'checkbox',
                             'name' => 'mass_list][' . $row['primary_key'],
-                            'value' => $row['primary_key']
-                        )) . $this->single_tag('label');
+                            'value' => $row['primary_key'],
+                            'id' => 'mass_' . $row['primary_key']
+                        )) . $this->single_tag('label', $this->theme_config('mass_checkbox_row_label'), [
+                            'for' => 'mass_' . $row['primary_key']
+                        ]);
                     }
-                    $out .= $this->close_tag($item);
+                    $out .= $this->close_tag('div') . $this->close_tag($item);
                 }
                 if ($this->is_numbers) {
                     $out .= $this->open_tag($item, 'xcrud-num', $this->_cell_attrib(false, false, false, $row, false, $row_color, $row_class)) . $this->open_tag('span') . ($key + $this->start + 1) . $this->close_tag('span') . $this->close_tag($item);
@@ -11455,7 +11462,15 @@ class Xcrud
         if ($this->sum && $this->result_list) {
             $out .= $this->open_tag($row, 'xcrud-tf');
             if (count($this->mass_actions)) {
-                $out .= $this->open_tag($item, 'xcrud-mass') . '&nbsp;' . $this->close_tag($item);
+                $out .= $this->open_tag($item) . $this->open_tag('div', 'xcrud-mass-checkbox-container xcrud-mass-checkbox-footer ' . $this->theme_config('mass_checkbox_footer_container'));
+                $out .= $this->single_tag('input', 'xcrud-mass-checkbox xcrud-mass-checkbox-footer ' . $this->theme_config('mass_checkbox_footer_input'), [
+                    'type' => 'checkbox',
+                    'id' => 'mass_checkbox_footer_input'
+                ]);
+                $out .= $this->single_tag('label', $this->theme_config('mass_checkbox_footer_label'), [
+                    'for' => 'mass_checkbox_footer_input'
+                ]);
+                $out .= $this->close_tag('div') . $this->close_tag($item);
             }
             if ($this->is_numbers) {
                 $out .= $this->open_tag($item, 'xcrud-num') . '&Sigma;' . $this->close_tag($item);

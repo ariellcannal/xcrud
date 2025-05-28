@@ -1,20 +1,23 @@
 {
 	"name" : "ariellcannal/xcrud",
-	"description" : "XCRUD - Ariell Cannal",
+	"description" : "CANNAL xcrud",
 	"license" : "MIT",
-	"type" : "codeigniter-module",
-	"require" : {
-		"composer/installers" : "~1.0",
-		"codeigniter4/translations" : "~4.5",
-		"codeigniter4/framework" : "~4.5",
-		"codeigniter4/settings" : "~2.2"
-	},
-	"config" : {
-		"optimize-autoloader" : true,
-		"preferred-install" : "dist",
-		"sort-packages" : true
-	},
-	"scripts" : {
-		"test" : "phpunit"
-	}
+	"type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "CANNALxcrud\\": "installer/"
+    },
+    "files": ["app/Libraries/Xcrud.php"]
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "CANNALxcrud\\Installer::postInstall"
+    ],
+    "post-update-cmd": [
+      "CANNALxcrud\\Installer::postInstall"
+    ]
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
 }
