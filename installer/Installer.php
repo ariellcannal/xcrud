@@ -2,7 +2,7 @@
 namespace CANNALxcrud;
 
 use Composer\Script\Event;
-
+ 
 class Installer
 {
 
