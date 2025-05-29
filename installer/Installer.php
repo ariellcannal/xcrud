@@ -12,11 +12,11 @@ class Installer
      */
     public static function postInstall(?Event $event = null): void
     {
-        // Caminho do projeto que está usando a biblioteca
-        $projectRoot = dirname(__DIR__, 4);
+        // Caminho da raiz do projeto que está usando a XCRUD
+        $projectRoot = dirname(__DIR__, 3);
         
-        // Caminho da raiz da biblioteca XCRUD
-        $xcrudRoot = dirname(__DIR__, 2);
+        // Caminho da raiz da própria biblioteca XCRUD
+        $xcrudRoot = dirname(__DIR__, 1);
         
         // Mapeamento dos diretórios que serão copiados
         $map = [
