@@ -11,8 +11,12 @@ class Installer
 {
     public static function postInstall(?Event $event = null): void
     {
-        $projectRoot = dirname(__DIR__, 3);
+        // Caminho correto da raiz do projeto principal (subir 4 níveis)
+        $projectRoot = dirname(__DIR__, 4);
         $xcrudRoot = dirname(__DIR__, 1);
+        
+        echo "Raiz do projeto: $projectRoot\n";
+        echo "Raiz do XCRUD: $xcrudRoot\n";
         
         $map = [
             'app/Config'      => 'app/Config',
@@ -28,17 +32,18 @@ class Installer
             $srcPath = realpath($xcrudRoot . '/' . $src);
             $destPath = $projectRoot . '/' . $dest;
             
+            echo "🔍 Verificando: $srcPath → $destPath\n";
+            
             if (!$srcPath || !is_dir($srcPath)) {
-                echo "Pasta não encontrada: $srcPath\n";
+                echo "⚠️ Pasta não encontrada: $srcPath\n";
                 continue;
             }
             
-            echo "Copiando de $srcPath para $destPath...\n";
             self::recursiveCopy($srcPath, $destPath);
-            echo "Finalizado: $src → $dest\n";
+            echo "✅ Finalizado: $src → $dest\n";
         }
         
-        echo "Instalação XCRUD finalizada.\n";
+        echo "✅ Instalação da XCRUD concluída.\n";
     }
     
     private static function recursiveCopy(string $source, string $destination): void
@@ -52,20 +57,21 @@ class Installer
             $targetPath = $destination . DIRECTORY_SEPARATOR . $iterator->getSubPathName();
             $sourcePath = $item->getPathname();
             
+            echo "📁 Copiando: $sourcePath → $targetPath\n";
+            
             if ($item->isDir()) {
-                if (!is_dir($targetPath)) {
-                    if (!mkdir($targetPath, 0755, true)) {
-                        echo "Erro ao criar diretório: $targetPath\n";
-                    }
+                if (!is_dir($targetPath) && !mkdir($targetPath, 0755, true)) {
+                    echo "❌ Erro ao criar diretório: $targetPath\n";
                 }
             } else {
                 if (!is_dir(dirname($targetPath))) {
                     mkdir(dirname($targetPath), 0755, true);
                 }
+                
                 if (!copy($sourcePath, $targetPath)) {
-                    echo "Erro ao copiar: $sourcePath → $targetPath\n";
+                    echo "❌ Erro ao copiar: $sourcePath → $targetPath\n";
                 } else {
-                    echo "Copiado: $sourcePath → $targetPath\n";
+                    echo "📄 Copiado: $targetPath\n";
                 }
             }
         }
