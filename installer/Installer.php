@@ -32,18 +32,18 @@ class Installer
             $srcPath = realpath($xcrudRoot . '/' . $src);
             $destPath = $projectRoot . '/' . $dest;
             
-            echo "🔍 Verificando: $srcPath → $destPath\n";
+            echo "Verificando: $srcPath → $destPath\n";
             
             if (!$srcPath || !is_dir($srcPath)) {
-                echo "⚠️ Pasta não encontrada: $srcPath\n";
+                echo "Pasta não encontrada: $srcPath\n";
                 continue;
             }
             
             self::recursiveCopy($srcPath, $destPath);
-            echo "✅ Finalizado: $src → $dest\n";
+            echo "Finalizado: $src → $dest\n";
         }
         
-        echo "✅ Instalação da XCRUD concluída.\n";
+        echo "Instalação da XCRUD concluída.\n";
     }
     
     private static function recursiveCopy(string $source, string $destination): void
@@ -57,11 +57,11 @@ class Installer
             $targetPath = $destination . DIRECTORY_SEPARATOR . $iterator->getSubPathName();
             $sourcePath = $item->getPathname();
             
-            echo "📁 Copiando: $sourcePath → $targetPath\n";
+            echo "Copiando: $sourcePath → $targetPath\n";
             
             if ($item->isDir()) {
                 if (!is_dir($targetPath) && !mkdir($targetPath, 0755, true)) {
-                    echo "❌ Erro ao criar diretório: $targetPath\n";
+                    echo "Erro ao criar diretório: $targetPath\n";
                 }
             } else {
                 if (!is_dir(dirname($targetPath))) {
@@ -69,9 +69,9 @@ class Installer
                 }
                 
                 if (!copy($sourcePath, $targetPath)) {
-                    echo "❌ Erro ao copiar: $sourcePath → $targetPath\n";
+                    echo "Erro ao copiar: $sourcePath → $targetPath\n";
                 } else {
-                    echo "📄 Copiado: $targetPath\n";
+                    echo "Copiado: $targetPath\n";
                 }
             }
         }
