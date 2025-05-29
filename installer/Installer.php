@@ -3,22 +3,17 @@
 namespace CANNALxcrud;
 
 use Composer\Script\Event;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use FilesystemIterator;
 
 class Installer
 {
-    /**
-     * Executado após o install ou update do Composer no projeto principal.
-     * Copia arquivos da lib XCRUD para dentro da estrutura do projeto.
-     */
     public static function postInstall(?Event $event = null): void
     {
-        // Caminho da raiz do projeto principal (vendor/ariellcannal/xcrud/installer → volta 3 níveis)
         $projectRoot = dirname(__DIR__, 3);
-        
-        // Caminho da raiz da lib XCRUD
         $xcrudRoot = dirname(__DIR__, 1);
         
-        // Mapeamento dos diretórios da lib para as pastas do projeto principal
         $map = [
             'app/Config'      => 'app/Config',
             'app/Controller'  => 'app/Controller',
@@ -26,7 +21,7 @@ class Installer
             'app/Models'      => 'app/Models',
             'app/Views'       => 'app/Views',
             'public/css'      => 'public/css',
-            'public/js'       => 'public/js',
+            'public/js'       => 'public/js'
         ];
         
         foreach ($map as $src => $dest) {
@@ -46,14 +41,11 @@ class Installer
         echo "Instalação XCRUD finalizada.\n";
     }
     
-    /**
-     * Copia arquivos e diretórios recursivamente com verificação.
-     */
     private static function recursiveCopy(string $source, string $destination): void
     {
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($source, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::SELF_FIRST
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
             );
         
         foreach ($iterator as $item) {
@@ -65,4 +57,17 @@ class Installer
                     if (!mkdir($targetPath, 0755, true)) {
                         echo "Erro ao criar diretório: $targetPath\n";
                     }
-                    
+                }
+            } else {
+                if (!is_dir(dirname($targetPath))) {
+                    mkdir(dirname($targetPath), 0755, true);
+                }
+                if (!copy($sourcePath, $targetPath)) {
+                    echo "Erro ao copiar: $sourcePath → $targetPath\n";
+                } else {
+                    echo "Copiado: $sourcePath → $targetPath\n";
+                }
+            }
+        }
+    }
+}
