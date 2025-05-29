@@ -12,13 +12,13 @@ class Installer
      */
     public static function postInstall(?Event $event = null): void
     {
-        // Caminho da raiz do projeto que está usando a XCRUD
+        // Caminho da raiz do projeto principal (vendor/ariellcannal/xcrud/installer → volta 3 níveis)
         $projectRoot = dirname(__DIR__, 3);
         
-        // Caminho da raiz da própria biblioteca XCRUD
+        // Caminho da raiz da lib XCRUD
         $xcrudRoot = dirname(__DIR__, 1);
         
-        // Mapeamento dos diretórios que serão copiados
+        // Mapear diretórios da lib XCRUD para as pastas do projeto principal
         $map = [
             'app/Config'      => 'app/Config',
             'app/Controller'  => 'app/Controller',
@@ -38,13 +38,16 @@ class Installer
                 continue;
             }
             
+            echo "🔄 Copiando de $srcPath para $destPath...\n";
             self::recursiveCopy($srcPath, $destPath);
-            echo "✔ Copiado: $src → $dest\n";
+            echo "✅ Finalizado: $src → $dest\n";
         }
+        
+        echo "✔️ Instalação XCRUD finalizada.\n";
     }
     
     /**
-     * Copia arquivos e pastas recursivamente.
+     * Copia arquivos e diretórios recursivamente com feedback de erros.
      */
     private static function recursiveCopy(string $source, string $destination): void
     {
@@ -55,17 +58,15 @@ class Installer
         
         foreach ($iterator as $item) {
             $targetPath = $destination . DIRECTORY_SEPARATOR . $iterator->getSubPathName();
+            $sourcePath = $item->getPathname();
             
             if ($item->isDir()) {
                 if (!is_dir($targetPath)) {
-                    mkdir($targetPath, 0755, true);
+                    if (!mkdir($targetPath, 0755, true)) {
+                        echo "❌ Erro ao criar diretório: $targetPath\n";
+                    }
                 }
             } else {
                 if (!is_dir(dirname($targetPath))) {
-                    mkdir(dirname($targetPath), 0755, true);
-                }
-                copy($item->getPathname(), $targetPath);
-            }
-        }
-    }
-}
+                    mkdir
+                    
