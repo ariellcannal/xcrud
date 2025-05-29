@@ -8,10 +8,27 @@
 		"codeigniter4/translations" : "~4.5",
 		"codeigniter4/framework" : "~4.5",
 		"codeigniter4/settings" : "~2.2"
-	},
-	"config" : {
-		"optimize-autoloader" : true,
-		"preferred-install" : "dist",
-		"sort-packages" : true
-	}
+	},"autoload": {
+    "psr-4": {
+      "CANNALxcrud\\": "installer/"
+    },
+    "files": [
+      "app/Libraries/Xcrud.php"
+    ]
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "CANNALxcrud\\Installer::postInstall"
+    ],
+    "post-update-cmd": [
+      "CANNALxcrud\\Installer::postInstall"
+    ]
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "config": {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true
+  }
 }
