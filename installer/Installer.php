@@ -20,7 +20,7 @@ class Installer
         
         $map = [
             'app/Config'      => 'app/Config',
-            'app/Controller'  => 'app/Controller',
+            'app/Controllers'  => 'app/Controllers',
             'app/Libraries'   => 'app/Libraries',
             'app/Models'      => 'app/Models',
             'app/Views'       => 'app/Views',
