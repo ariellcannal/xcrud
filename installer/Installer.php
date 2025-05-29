@@ -6,7 +6,7 @@ use Composer\Script\Event;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use FilesystemIterator;
- 
+
 class Installer
 {
     public static function postInstall(?Event $event = null): void
