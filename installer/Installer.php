@@ -18,7 +18,7 @@ class Installer
         // Caminho da raiz da lib XCRUD
         $xcrudRoot = dirname(__DIR__, 1);
         
-        // Mapear diretórios da lib XCRUD para as pastas do projeto principal
+        // Mapeamento dos diretórios da lib para as pastas do projeto principal
         $map = [
             'app/Config'      => 'app/Config',
             'app/Controller'  => 'app/Controller',
@@ -34,20 +34,20 @@ class Installer
             $destPath = $projectRoot . '/' . $dest;
             
             if (!$srcPath || !is_dir($srcPath)) {
-                echo "⚠️ Pasta não encontrada: $srcPath\n";
+                echo "Pasta não encontrada: $srcPath\n";
                 continue;
             }
             
-            echo "🔄 Copiando de $srcPath para $destPath...\n";
+            echo "Copiando de $srcPath para $destPath...\n";
             self::recursiveCopy($srcPath, $destPath);
-            echo "✅ Finalizado: $src → $dest\n";
+            echo "Finalizado: $src → $dest\n";
         }
         
-        echo "✔️ Instalação XCRUD finalizada.\n";
+        echo "Instalação XCRUD finalizada.\n";
     }
     
     /**
-     * Copia arquivos e diretórios recursivamente com feedback de erros.
+     * Copia arquivos e diretórios recursivamente com verificação.
      */
     private static function recursiveCopy(string $source, string $destination): void
     {
@@ -63,10 +63,6 @@ class Installer
             if ($item->isDir()) {
                 if (!is_dir($targetPath)) {
                     if (!mkdir($targetPath, 0755, true)) {
-                        echo "❌ Erro ao criar diretório: $targetPath\n";
+                        echo "Erro ao criar diretório: $targetPath\n";
                     }
-                }
-            } else {
-                if (!is_dir(dirname($targetPath))) {
-                    mkdir
                     
