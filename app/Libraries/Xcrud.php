@@ -7835,8 +7835,10 @@ class Xcrud
         }
     }
 
-    protected static function error($text = 'Error!')
+    protected static function error($text = 'Error!', $http_response_code = 400)
     {
+        http_response_code($http_response_code);
+        exit($text);
         exit('<div class="xcrud-error" style="position:relative;line-height:1.25;padding:15px;color:#BA0303;margin:10px;border:1px solid #BA0303;border-radius:4px;font-family:Arial,sans-serif;background:#FFB5B5;box-shadow:inset 0 0 80px #E58989;">
             <span style="position:absolute;font-size:10px;bottom:3px;right:5px;">xCRUD</span>' . $text . '</div>');
     }
